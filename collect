@@ -1,0 +1,43 @@
+#Trade 101 collect backtest data  كريبتو
+import ccxt
+import pandas as pd
+import time
+
+# Initialize Binance API
+exchange = ccxt.binance()
+
+def get_crypto_data(symbol="BTC/USDT", timeframe="1m", total_bars=5000):
+    """
+    Fetches historical OHLCV data from Binance in multiple requests.
+    
+    :param symbol: Cryptocurrency pair (e.g., "BTC/USDT")
+    :param timeframe: Chart timeframe (e.g., "1m", "5m", "1h", "1d")
+    :param total_bars: Total number of data points needed
+    :return: Pandas DataFrame with historical data
+    """
+    all_data = []
+    limit = 1000  # Maximum limit per request
+    since = exchange.milliseconds() - (total_bars * 60 * 1000)  # Start time (approx.)
+
+    while len(all_data) < total_bars:
+        print(f"Fetching data... {len(all_data)} / {total_bars}")
+        
+        # Fetch data
+        ohlcv = exchange.fetch_ohlcv(symbol, timeframe, since=since, limit=limit)
+        
+        if not ohlcv:
+            break  # Stop if no more data
+        
+        all_data.extend(ohlcv)
+        since = ohlcv[-1][0] + 1  # Move to next batch
+        time.sleep(1)  # Avoid API rate limits
+
+    # Convert to Pandas DataFrame
+    df = pd.DataFrame(all_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")  # Convert timestamp
+
+    return df[:total_bars]  # Trim extra data
+
+# Example usage
+crypto_data = get_crypto_data("BTC/USDT", "1m", 5000)  # Fetch 5000 minutes of data
+print(crypto_data.head())  # Show first few rows
